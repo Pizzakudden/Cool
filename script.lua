@@ -1,42 +1,76 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+--[[
+    Thanks for using my HBE script,
+    this script should work for almost any game, however some may use different hit detection methods.
+    If you have any questions, leave a comment or DM realrade0n on Discord.
+    *Note* If you want to add this to your GUI, watch the GUI section in my video on how to do so.
+]]
 
-local Window = Rayfield:CreateWindow({
-   Name = "Rayfield Example Window",
-   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
-   LoadingTitle = "Rayfield Interface Suite",
-   LoadingSubtitle = "by Sirius",
-   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
-   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+getgenv().HBE = true -- HBE Variable, use this to control whether the hitboxes are active or not.
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+local function GetCharParent()
+    local charParent
+    repeat wait() until LocalPlayer.Character
+    for _, char in pairs(workspace:GetDescendants()) do
+        if string.find(char.Name, LocalPlayer.Name) and char:FindFirstChild("Humanoid") then
+            charParent = char.Parent
+            break
+        end
+    end
+    return charParent
+end
 
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
 
-   -- ScriptID = "sid_xxxxxxxxxxxx", -- Your Script ID from developer.sirius.menu — enables analytics, managed keys, and script hosting
+-- pcall to avoid the script breaking on low level executors (e.g. Solara or any Xeno paste)
+pcall(function()
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local old = mt.__index
+    mt.__index = function(Self, Key)
+        if tostring(Self) == "HumanoidRootPart" and tostring(Key) == "Size" then
+            return Vector3.new(2,2,1)
+        end
+        return old(Self, Key)
+    end
+    setreadonly(mt, true)
+end)
 
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, -- Create a custom folder for your hub/game
-      FileName = "Big Hub"
-   },
 
-   Discord = {
-      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
-      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
-      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
-   },
+local CHAR_PARENT = GetCharParent()
+local HITBOX_SIZE = Vector3.new(15,15,15) -- Default size. You can let the user choose with a slider. e.g. HITBOX_SIZE = Vector3.new(Value, Value, Value)
+local HITBOX_COLOUR = Color3.fromRGB(255,0,0) -- Default colour (RGB)
 
-   KeySystem = false, -- Set this to true to use our key system
-   KeySettings = {
-      Title = "Untitled",
-      Subtitle = "Key System",
-      Note = "No method of obtaining the key is provided", -- Use this to tell the user how to get a key
-      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
-      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-      GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-      Key = {"Hello"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
-   }
-})
 
-Rayfield:LoadConfiguration()
+local function AssignHitboxes(player)
+    if player == LocalPlayer then return end
+
+    local hitbox_connection;
+    hitbox_connection = game:GetService("RunService").RenderStepped:Connect(function()
+        local char = CHAR_PARENT:FindFirstChild(player.Name)
+        if getgenv().HBE then
+            if char and char:FindFirstChild("HumanoidRootPart") and (char.HumanoidRootPart.Size ~= HITBOX_SIZE or char.HumanoidRootPart.Color ~= HITBOX_COLOUR) then
+                char.HumanoidRootPart.Size = HITBOX_SIZE
+                char.HumanoidRootPart.Color = HITBOX_COLOUR
+                char.HumanoidRootPart.CanCollide = false
+                char.HumanoidRootPart.Transparency = 0.5
+            end
+        else
+            hitbox_connection:Disconnect()
+            char.HumanoidRootPart.Size = Vector3.new(2,2,1)
+            char.HumanoidRootPart.Transparency = 1
+        end
+    end)
+end
+
+
+for _, player in ipairs(Players:GetPlayers()) do
+    AssignHitboxes(player)
+end
+
+
+Players.PlayerAdded:Connect(function(player)
+    if getgenv().HBE then
+        AssignHitboxes(player)
+    end
+end)
